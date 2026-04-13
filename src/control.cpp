@@ -9,8 +9,8 @@
 #include "pid.h"
 
 
-#define ROLL_P 0.2
-#define ROLL_I 0.01
+#define ROLL_P 0.01
+#define ROLL_I 0
 #define ROLL_D 0
 #define PITCH_P ROLL_P
 #define PITCH_I ROLL_I
@@ -42,12 +42,17 @@ void controlTorque() {
   float outRoll = rollPID.update(rollError);
   float outPitch = pitchPID.update(pitchError);
 
-  Serial.println(String(outRoll) + ", " + String(outPitch));
+  //Serial.println(String(outRoll) + ", " + String(outPitch));
+  //Serial.println(String(throttle_channel));
+
+  Serial.println(String(roll_channel) + ", " + String(pitch_channel));
 
   motors[MOTOR_FRONT_LEFT] = constrain(throttle_channel + outRoll + outPitch, 0, 1);
   motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll + outPitch, 0, 1);
   motors[MOTOR_REAR_RIGHT] = constrain(throttle_channel - outRoll - outPitch, 0, 1);
   motors[MOTOR_REAR_LEFT] = constrain(throttle_channel + outRoll - outPitch, 0, 1);
+  
+  //Serial.println(motors[MOTOR_FRONT_LEFT]);
 }
 
 void controlArming() {

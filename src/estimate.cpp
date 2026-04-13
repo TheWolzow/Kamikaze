@@ -27,5 +27,5 @@ void estimate() {
   rotation.y = complementary_alpha * (rotation.y + gyroDeg.y * dt) + (1 - complementary_alpha) * pitch_acc;
   rotation.z = rotation.z + gyroDeg.z * dt;
 
-  Serial.println(rotation);
+  // Serial.println(rotation);
 }

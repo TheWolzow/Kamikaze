@@ -14,6 +14,21 @@ uint8_t sbusIndex = 0;
 uint16_t sbusChannels[16];
 uint32_t lastSbusTime = 0;
 
+static const int channelMin[4] = {
+  192,
+  179,
+  185,
+  172
+};
+
+static const int channelMax[4] = {
+  1811,
+  1811,
+  1811,
+  1811
+};
+
+
 bool sbusReady;
 bool sbusFailsafe;  // Когда радиосигнал с пульта потерян
 bool sbusLostFrame;
@@ -125,13 +140,13 @@ void parseSBUS() {
     }
 
     // пример: печать первых n каналов
-    /*for (int i = 0; i < 16; i++) {
-      Serial.print(i);
-      Serial.print(":");
-      Serial.print(sbusChannels[i]);
-      Serial.print(" ");
-    }
-    Serial.println();*/
+    // for (int i = 0; i < 8; i++) {
+    //   Serial.print(i);
+    //   Serial.print(":");
+    //   Serial.print(sbusChannels[i]);
+    //   Serial.print(" ");
+    // }
+    // Serial.println();
 /*
       Каналы:
       0 - Газ (больше число - вверх ручка)
@@ -143,12 +158,12 @@ void parseSBUS() {
 
     //  Нормализация: float norm = (channel - 992.0f) / 820.0f;  // -1 … +1
 
-    throttle_channel = mapf((float) sbusChannels[0], 172.0, 1811.0, 0.0, 1.0);
+    throttle_channel = mapf(sbusChannels[0], channelMin[0], channelMax[0], 0.0, 1.0);
     throttle_channel = constrain(throttle_channel, 0, 1);
 
-    roll_channel = ((float) sbusChannels[1] - 992.0f) / 820.0f * 90.0f;
-    pitch_channel = ((float) sbusChannels[2] - 992.0f) / 820.0f * -90.0f;
-    yaw_channel = ((float) sbusChannels[3] - 992.0f) / 820.0f * 90.0f;
+    roll_channel = mapf(sbusChannels[1], channelMin[1], channelMax[1], -90, 90);
+    pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], -90, 90);
+    yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -90, 90);
     
     // float pid_channel = sbusChannels[6];
     // float k = fmap(sbusChannels[7], 172, 1811, 0.0, 5.0);

@@ -86,7 +86,10 @@ void writeMotors() {
     uint32_t duty = usToDuty(us);
 
     ledcWrite(motorChannels[i], duty);
+    //Serial.print(us);
+    //Serial.print(" ");
   }
+  //Serial.println();
 }
 
 void writeAllMotors(float throttle) {
