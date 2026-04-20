@@ -42,10 +42,10 @@ void controlTorque() {
   float outRoll = rollPID.update(rollError);
   float outPitch = pitchPID.update(pitchError);
 
-  //Serial.println(String(outRoll) + ", " + String(outPitch));
+  Serial.println(String(outRoll) + ", " + String(outPitch));
   //Serial.println(String(throttle_channel));
 
-  Serial.println(String(roll_channel) + ", " + String(pitch_channel));
+  //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
 
   motors[MOTOR_FRONT_LEFT] = constrain(throttle_channel + outRoll + outPitch, 0, 1);
   motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll + outPitch, 0, 1);

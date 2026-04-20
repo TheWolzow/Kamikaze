@@ -162,7 +162,7 @@ void parseSBUS() {
     throttle_channel = constrain(throttle_channel, 0, 1);
 
     roll_channel = mapf(sbusChannels[1], channelMin[1], channelMax[1], -90, 90);
-    pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], -90, 90);
+    pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], 90, -90);
     yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -90, 90);
     
     // float pid_channel = sbusChannels[6];
