@@ -5,7 +5,7 @@
 
 class PID {
 public:
-  float p, i, d;
+  	float p, i, d;
 	float windup;
 	float dtMax;
 
@@ -18,12 +18,12 @@ public:
 		p(p), i(i), d(d), windup(windup), lpf(dAlpha), dtMax(dtMax) {}
 
 	float update(float error) {
-		if (dt > 0 && dt < dtMax) {
+		if (dt > 0 && dt < dtMax && throttle_channel > 0.05f) {
 			integral += error * dt;
-      // Высчитываем производную и применяем фильтр нижних частот (lpf)
+      		// Высчитываем производную и применяем фильтр нижних частот (lpf)
 			derivative = lpf.update((error - prevError) / dt);
 		
-    } else {
+    	} else {
 			integral = 0;
 			derivative = 0;
 		}

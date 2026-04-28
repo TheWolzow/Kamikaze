@@ -69,8 +69,7 @@ uint32_t usToDuty(int us) {
 // ===== INIT =====
 void attachMotors() {
   for (int i = 0; i < 4; i++) {
-    ledcSetup(motorChannels[i], PWM_FREQ, PWM_RESOLUTION);
-    ledcAttachPin(motorPins[i], motorChannels[i]);
+    ledcAttach(motorPins[i], PWM_FREQ, PWM_RESOLUTION);
   }
 
   writeAllMotors(0.0);
@@ -85,7 +84,7 @@ void writeMotors() {
     int us = MIN_US + motors[i] * (MAX_US - MIN_US);
     uint32_t duty = usToDuty(us);
 
-    ledcWrite(motorChannels[i], duty);
+    ledcWrite(motorPins[i], duty);
     //Serial.print(us);
     //Serial.print(" ");
   }

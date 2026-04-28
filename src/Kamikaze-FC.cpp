@@ -5,6 +5,15 @@
 Эта учебная программа создана по мотивам Flix
 https://github.com/okalachev/flix/tree/master/flix
 
+TODO лист:
+
+3. При резком изменении режима (когда сделаю) сбрасывать ПИДы (PID::reset)
+
+Например:
+
+смена Acro → Angle
+включение стабилизации
+
 */
 
 #include <Arduino.h>
