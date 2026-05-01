@@ -2,18 +2,13 @@
 
 #include "vector.h"
 
-extern Vector gyro;  // gyroscope output, rad/s
-extern Vector gyroDeg;  // gyroscope output, deg/s
+extern Vector gyroRad;  // gyroscope output, rad/s
 extern Vector gyroBias;
 
-extern Vector acc;  // accelerometer output, m/s/s
 extern Vector accG;  // accelerometer output, g
 extern Vector accBias;
 
-void setupIMU();
-void configureIMU();
-void readIMU();
+void initIMU();
+void mpu6050_read_raw();  // Читает и записывает в указазанные переменные сырые данные используя Wire
+void readIMU();  // Читает сырые данные и составляет из них вектора
 void calibrateAsync();
-void printAccelerometerRange();
-void printGyroRange();
-void printFilterBandwidth();

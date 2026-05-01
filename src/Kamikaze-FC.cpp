@@ -47,7 +47,7 @@ void setup() {
 
   attachMotors();
   beginSBUS();
-  setupIMU();
+  initIMU();
   //delay(6000);
   
   calibrateAsync();

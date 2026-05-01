@@ -1,68 +1,113 @@
 #include <Arduino.h>
 #include "imu.h"
 
-#include <Adafruit_Sensor.h>
-#include <Adafruit_MPU6050.h>
-
+#include <Wire.h>
 #include "vector.h"
 #include "utils.h"
 
-Adafruit_MPU6050 imu;
+#define MPU_ADDR 0x68
+
+const float ACCEL_LSB_PER_G = 16384.0;  // +-2g
+const float GYRO_LSB_PER_DPS = 131.0;   // +-250 градусов/с
 
 const short CALIB_SAMPLES = 2000;
 
-Vector gyro;  // gyroscope output, rad/s
+const unsigned long period = 2000;  // микросекунды
+
+unsigned long last_time = 0;
+
+Vector gyroRad;  // gyroscope output, rad/s
 Vector gyroDeg;  // gyroscope output, deg/s
-Vector gyroBias;
+Vector gyroBias;  // raw gyro bias
 
 Vector acc;  // accelerometer output, m/s/s
 Vector accG;  // accelerometer output, g
-Vector accBias;
+Vector accBias;  // raw acc bias
 
 
-void setupIMU() {
-  Serial.println("Setup IMU");
-  if (!imu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
-    while (1) {
-      delay(10);
-    }
+void initIMU() {
+  Serial.println("Initializing IMU");
+  
+  Wire.begin(21, 22);               // SDA=21, SCL=22 (настройте под свою плату)
+  Wire.setClock(400000);            // 400 кГц
+
+  // 1. Выход из спящего режима, выбор внутреннего тактового генератора
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B);                 // PWR_MGMT_1
+  Wire.write(0x00);                 // всё по нулям – пробуждение
+  Wire.endTransmission();
+
+  // 2. Настройка гироскопа (+-250 гр/с, без самодиагностики)
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x1B);                 // GYRO_CONFIG
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  // 3. Настройка акселерометра (+-2g, без самодиагностики)
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x1C);                 // ACCEL_CONFIG
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  // Опционально: проверить WHO_AM_I
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x75);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, 1);
+  if (Wire.read() == 0x68) {
+    Serial.println("MPU6050 найден.");
+  } else {
+    Serial.println("Ошибка: датчик не обнаружен!");
   }
 
-  configureIMU();
+  last_time = micros();
 }
 
-void configureIMU() {
-  imu.setAccelerometerRange(MPU6050_RANGE_4_G);
-  imu.setGyroRange(MPU6050_RANGE_2000_DEG);
-  imu.setFilterBandwidth(MPU6050_BAND_94_HZ);
-  // TODO
+// Читает и записывает в указазанные переменные сырые данные используя Wire
+void mpu6050_read_raw(int16_t &ax, int16_t &ay, int16_t &az,
+                      int16_t &gx, int16_t &gy, int16_t &gz) {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B);                // стартовый адрес ACCEL_XOUT_H
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, (uint8_t) 14);
 
-  printAccelerometerRange();
-  printGyroRange();
-  printFilterBandwidth();
+  ax = (Wire.read() << 8) | Wire.read();
+  ay = (Wire.read() << 8) | Wire.read();
+  az = (Wire.read() << 8) | Wire.read();
+  // Пропускаем температуру (2 байта)
+  Wire.read(); Wire.read();
+  gx = (Wire.read() << 8) | Wire.read();
+  gy = (Wire.read() << 8) | Wire.read();
+  gz = (Wire.read() << 8) | Wire.read();
 }
 
+// Читает сырые данные и составляет из них вектора
 void readIMU() {
-  sensors_event_t a, g, temp;
-  imu.getEvent(&a, &g, &temp);
+  // Фиксированный период 2000 мкс -> 500 Гц
+  unsigned long now = micros();
+  
+  if (now - last_time >= period) {
+    last_time += period;  // не now, чтобы избежать накопления дрейфа
 
-  acc.x = a.acceleration.x;
-  acc.y = a.acceleration.y;
-  acc.z = a.acceleration.z;
-  acc -= accBias;
+    int16_t ax_raw, ay_raw, az_raw, gx_raw, gy_raw, gz_raw;
+    mpu6050_read_raw(ax_raw, ay_raw, az_raw, gx_raw, gy_raw, gz_raw);
 
-  gyro.x = g.gyro.x;
-  gyro.y = g.gyro.y;
-  gyro.z = g.gyro.z;
-  gyro -= gyroBias;
+    // Применяем оффсеты
+    ax_raw -= accBias.x;
+    ay_raw -= accBias.y;
+    az_raw -= accBias.z;
+    gx_raw -= gyroBias.x;
+    gy_raw -= gyroBias.y;
+    gz_raw -= gyroBias.z;
 
-  gyroDeg = gyro * RAD_TO_DEG;
+    accG.x = ax_raw / ACCEL_LSB_PER_G;
+    accG.y = ay_raw / ACCEL_LSB_PER_G;
+    accG.z = az_raw / ACCEL_LSB_PER_G;
 
-  // g
-  accG.x = (float) acc.x / gConst;
-  accG.y = (float) acc.y / gConst;
-  accG.z = (float) acc.z / gConst;
+    gyroRad.x = gx_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
+    gyroRad.y = gy_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
+    gyroRad.z = gz_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
+  }
 }
 
 void calibrateAsync() {
@@ -72,100 +117,25 @@ void calibrateAsync() {
   Vector gyroOffset;
 
   for (int i = 0; i < CALIB_SAMPLES; i++) {
-    sensors_event_t a, g, t;
-    imu.getEvent(&a, &g, &t);
+    int16_t ax_raw, ay_raw, az_raw, gx_raw, gy_raw, gz_raw;
+    mpu6050_read_raw(ax_raw, ay_raw, az_raw, gx_raw, gy_raw, gz_raw);
 
-    accOffset += Vector(a.acceleration.x, a.acceleration.y, a.acceleration.z);
-    gyroOffset += Vector(g.gyro.x, g.gyro.y, g.gyro.z);
+    accOffset += Vector(ax_raw, ay_raw, az_raw);
+    gyroOffset += Vector(gx_raw, gy_raw, gz_raw);
 
-    delay(2);
+    delay(2);  // небольшая пауза, чтобы набрать статистику
   }
 
   accOffset.x /= CALIB_SAMPLES;
   accOffset.y /= CALIB_SAMPLES;
-  accOffset.z = (accOffset.z / CALIB_SAMPLES) - 9.80665;  // гравитация
+  accOffset.z = (accOffset.z / CALIB_SAMPLES) - ACCEL_LSB_PER_G;  // гравитация
 
   gyroOffset.x /= CALIB_SAMPLES;
   gyroOffset.y /= CALIB_SAMPLES;
   gyroOffset.z /= CALIB_SAMPLES;
 
-  /*Serial.println("\n=== ОФФСЕТЫ ===");
-  Serial.print("AX: "); Serial.println(ax_off);
-  Serial.print("AY: "); Serial.println(ay_off);
-  Serial.print("AZ: "); Serial.println(az_off);
-
-  Serial.print("GX: "); Serial.println(gx_off);
-  Serial.print("GY: "); Serial.println(gy_off);
-  Serial.print("GZ: "); Serial.println(gz_off);
-
-  Serial.println("\nСохрани и вычитай их из измерений");*/
+  //Serial.println("\nСохрани и вычитай их из измерений");*/
 
   accBias = accOffset;
   gyroBias = gyroOffset;
-}
-
-void printAccelerometerRange() {
-  Serial.print("Accelerometer range: ");
-
-  switch (imu.getAccelerometerRange()) {
-    case MPU6050_RANGE_2_G:
-      Serial.println("+-2G");
-      break;
-    case MPU6050_RANGE_4_G:
-      Serial.println("+-4G");
-      break;
-    case MPU6050_RANGE_8_G:
-      Serial.println("+-8G");
-      break;
-    case MPU6050_RANGE_16_G:
-      Serial.println("+-16G");
-      break;
-  }
-}
-
-void printGyroRange() {
-  Serial.print("Gyro range: ");
-  
-  switch (imu.getGyroRange()) {
-    case MPU6050_RANGE_250_DEG:
-      Serial.println("+- 250 deg/s");
-      break;
-    case MPU6050_RANGE_500_DEG:
-      Serial.println("+- 500 deg/s");
-      break;
-    case MPU6050_RANGE_1000_DEG:
-      Serial.println("+- 1000 deg/s");
-      break;
-    case MPU6050_RANGE_2000_DEG:
-      Serial.println("+- 2000 deg/s");
-      break;
-  }
-}
-
-void printFilterBandwidth() {
-  Serial.print("Filter bandwidth: ");
-
-  switch (imu.getFilterBandwidth()) {
-    case MPU6050_BAND_260_HZ:
-      Serial.println("260 Hz");
-      break;
-    case MPU6050_BAND_184_HZ:
-      Serial.println("184 Hz");
-      break;
-    case MPU6050_BAND_94_HZ:
-      Serial.println("94 Hz");
-      break;
-    case MPU6050_BAND_44_HZ:
-      Serial.println("44 Hz");
-      break;
-    case MPU6050_BAND_21_HZ:
-      Serial.println("21 Hz");
-      break;
-    case MPU6050_BAND_10_HZ:
-      Serial.println("10 Hz");
-      break;
-    case MPU6050_BAND_5_HZ:
-      Serial.println("5 Hz");
-      break;
-    }
 }

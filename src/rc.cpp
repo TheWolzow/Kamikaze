@@ -37,7 +37,7 @@ bool radioLost;
 
 // Каналы
 float throttle_channel = MIN_MOTOR;  // Газ
-float yaw_channel = 0;  // Рыскание в градусах
+float yaw_channel = 0;  // Рыскание, значение стика [-1; 1]
 float roll_channel = 0;  // Крен в градусах
 float pitch_channel = 0;  // Тангаж в градусах
 
@@ -163,7 +163,7 @@ void parseSBUS() {
 
     roll_channel = mapf(sbusChannels[1], channelMin[1], channelMax[1], -90, 90);
     pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], 90, -90);
-    yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -90, 90);
+    yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -1, 1);
     
     // float pid_channel = sbusChannels[6];
     // float k = fmap(sbusChannels[7], 172, 1811, 0.0, 5.0);

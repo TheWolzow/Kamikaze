@@ -12,7 +12,7 @@
 #include "pid.h"
 #include "imu.h"
 
-#define PITCHRATE_P 0
+#define PITCHRATE_P 1
 #define PITCHRATE_I 0
 #define PITCHRATE_D 0
 #define PITCHRATE_I_LIM 0.3
@@ -20,7 +20,7 @@
 #define ROLLRATE_I PITCHRATE_I
 #define ROLLRATE_D PITCHRATE_D
 #define ROLLRATE_I_LIM PITCHRATE_I_LIM
-#define YAWRATE_P 0.3
+#define YAWRATE_P 0
 #define YAWRATE_I 0.0
 #define YAWRATE_D 0.0
 #define YAWRATE_I_LIM 0.3
@@ -80,9 +80,9 @@ void controlTorque() {
   float targetYawRate = yaw_channel * maxRate.z;
 
   // ПИД угловой скорости
-  float rollRateError  = targetRollRate  - gyroDeg.x;
-  float pitchRateError = targetPitchRate - gyroDeg.y;
-  float yawRateError   = targetYawRate   - gyroDeg.z;
+  float rollRateError  = targetRollRate  - gyroRad.x * RAD_TO_DEG;
+  float pitchRateError = targetPitchRate - gyroRad.y * RAD_TO_DEG;
+  float yawRateError   = targetYawRate   - gyroRad.z * RAD_TO_DEG;
 
   float outRoll  = rollRatePID.update(rollRateError);
   float outPitch = pitchRatePID.update(pitchRateError);
@@ -93,12 +93,18 @@ void controlTorque() {
   motors[MOTOR_REAR_RIGHT]  = constrain(throttle_channel - outRoll - outPitch - outYaw, 0, 1);
   motors[MOTOR_REAR_LEFT]   = constrain(throttle_channel + outRoll - outPitch + outYaw, 0, 1);
 
-  //Serial.println(String(outRoll) + ", " + String(outPitch));
+  //Serial.println(String(outRoll) + ", " + String(outPitch) + ", " + String(outYaw));
   //Serial.println(String(throttle_channel));
 
   //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
 
-  //Serial.println(motors[MOTOR_FRONT_LEFT]);
+  Serial.print(motors[MOTOR_FRONT_LEFT]);
+  Serial.print(", ");
+  Serial.print(motors[MOTOR_FRONT_RIGHT]);
+  Serial.print(", ");
+  Serial.print(motors[MOTOR_REAR_RIGHT]);
+  Serial.print(", ");
+  Serial.println(motors[MOTOR_REAR_LEFT]);
 }
 
 void controlArming() {

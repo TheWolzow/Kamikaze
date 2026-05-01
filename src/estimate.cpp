@@ -13,19 +13,22 @@
 #include "vector.h"
 
 Vector rotation;  // Ориентация дрона в градусах
+Vector rotationRad;  // Ориентация дрона в радианах
 
 static float complementary_alpha = 0.77;
 
 
 void estimate() {
   // Градусы
-  float roll_acc = atan2(accG.y, accG.z) * RAD_TO_DEG;
-  float pitch_acc = atan2(accG.x, sqrt(accG.y * accG.y + accG.z * accG.z)) * RAD_TO_DEG;
+  float roll_acc = atan2(accG.y, accG.z);
+  float pitch_acc = atan2(accG.x, sqrt(accG.y * accG.y + accG.z * accG.z));
 
   // Комплементарный фильтр
-  rotation.x = complementary_alpha * (rotation.x  + gyroDeg.x * dt) + (1 - complementary_alpha) * roll_acc;
-  rotation.y = complementary_alpha * (rotation.y + gyroDeg.y * dt) + (1 - complementary_alpha) * pitch_acc;
-  rotation.z = rotation.z + gyroDeg.z * dt;
+  rotationRad.x = complementary_alpha * (rotationRad.x  + gyroRad.x * dt) + (1 - complementary_alpha) * roll_acc;
+  rotationRad.y = complementary_alpha * (rotationRad.y + gyroRad.y * dt) + (1 - complementary_alpha) * pitch_acc;
+  rotationRad.z = rotationRad.z + gyroRad.z * dt;
 
-  // Serial.println(rotation);
+  rotation = rotationRad * RAD_TO_DEG;
+
+  //Serial.println(rotation);
 }
