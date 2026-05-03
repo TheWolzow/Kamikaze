@@ -107,6 +107,8 @@ void readIMU() {
     gyroRad.x = gx_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
     gyroRad.y = gy_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
     gyroRad.z = gz_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
+
+    // Serial.println(gyroRad);
   }
 }
 
