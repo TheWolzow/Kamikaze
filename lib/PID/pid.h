@@ -19,18 +19,22 @@ public:
 
 	float update(float error) {
 		if (dt > 0 && dt < dtMax && throttle_channel > 0.05f) {
-			integral += error * dt;
-      		// Высчитываем производную и применяем фильтр нижних частот (lpf)
-			derivative = lpf.update((error - prevError) / dt);
-		
-    	} else {
+			// Защита от первого вызова после сброса
+			if (isnan(prevError)) {
+				prevError = error;
+				derivative = 0;
+			} else {
+				integral += error * dt;
+				derivative = lpf.update((error - prevError) / dt);
+			}
+		} else {
 			integral = 0;
 			derivative = 0;
+			// Опционально: prevError = error; чтобы при следующем входе производная считалась корректно
+			prevError = error;
 		}
+		prevError = error;   // обновляется в любом случае
 
-		prevError = error;
-
-    	// PID
 		return p * error + constrain(i * integral, -windup, windup) + d * derivative;
 	}
 

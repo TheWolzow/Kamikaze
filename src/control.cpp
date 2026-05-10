@@ -12,9 +12,9 @@
 #include "pid.h"
 #include "imu.h"
 
-#define PITCHRATE_P 0.01
-#define PITCHRATE_I 0
-#define PITCHRATE_D 0.01
+#define PITCHRATE_P 0.05
+#define PITCHRATE_I 0.02 // 0.03
+#define PITCHRATE_D 0
 #define PITCHRATE_I_LIM 0.3
 #define ROLLRATE_P PITCHRATE_P
 #define ROLLRATE_I PITCHRATE_I
@@ -24,7 +24,7 @@
 #define YAWRATE_I 0.0
 #define YAWRATE_D 0.0
 #define YAWRATE_I_LIM 0.3
-#define ROLL_P 0
+#define ROLL_P 1
 #define ROLL_I 0
 #define ROLL_D 0
 #define PITCH_P ROLL_P
@@ -71,13 +71,14 @@ void controlTorque() {
   //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
   //Serial.println(String(rollError) + ", " + String(pitchError));
 
-  // ПИД целевой угловой скорости
+  // ПИД целевой угловой скорости в радианах
   float targetRollRate = rollPID.update(rollError);
   float targetPitchRate = pitchPID.update(pitchError);
+
   // Ограничиваем максимальную скорость вращения
   targetRollRate = constrain(targetRollRate, -maxRate.x, maxRate.x);
   targetPitchRate = constrain(targetPitchRate, -maxRate.y, maxRate.y);
-
+  
   float targetYawRate = yaw_channel * DEG_TO_RAD * maxRate.z;
   
   // ПИД угловой скорости в радианах
@@ -98,13 +99,16 @@ void controlTorque() {
   // Serial.print(", ");
   // Serial.println(outRoll);
 
+  // Serial.print("gyroY:"); Serial.print(gyroRad.y);
+  // Serial.print(" err:");  Serial.print(pitchRateError);
+  // Serial.print(" outP:"); Serial.println(outPitch);
   // Микшер
   motors[MOTOR_FRONT_LEFT]  = constrain(throttle_channel + outRoll + outPitch - outYaw, 0, 1);
   motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll + outPitch + outYaw, 0, 1);
   motors[MOTOR_REAR_RIGHT]  = constrain(throttle_channel - outRoll - outPitch - outYaw, 0, 1);
   motors[MOTOR_REAR_LEFT]   = constrain(throttle_channel + outRoll - outPitch + outYaw, 0, 1);
 
-  //Serial.println(String(outRoll) + ", " + String(outPitch) + ", " + String(outYaw));
+  // Serial.println(String(outRoll) + ", " + String(outPitch) + ", " + String(outYaw));
   //Serial.println(String(throttle_channel));
 
   //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
