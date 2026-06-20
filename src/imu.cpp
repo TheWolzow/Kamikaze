@@ -26,10 +26,7 @@ Vector accBias;  // raw acc bias
 
 
 void initIMU() {
-  Serial.println("Initializing IMU");
-  
-  Wire.begin(21, 22);               // SDA=21, SCL=22 (настройте под свою плату)
-  Wire.setClock(400000);            // 400 кГц
+  Serial.println("Инициализация IMU");
 
   // 1. Выход из спящего режима, выбор внутреннего тактового генератора
   Wire.beginTransmission(MPU_ADDR);
@@ -112,7 +109,7 @@ void readIMU() {
   }
 }
 
-void calibrateAsync() {
+void calibrateIMU() {
   Serial.println("Не двигай датчик! Калибровка начинается...");
 
   Vector accOffset;

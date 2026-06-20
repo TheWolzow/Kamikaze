@@ -20,7 +20,7 @@
 #define ROLLRATE_I PITCHRATE_I
 #define ROLLRATE_D PITCHRATE_D
 #define ROLLRATE_I_LIM PITCHRATE_I_LIM
-#define YAWRATE_P 0.0
+#define YAWRATE_P 0.02
 #define YAWRATE_I 0.0
 #define YAWRATE_D 0.0
 #define YAWRATE_I_LIM 0.3
@@ -91,35 +91,13 @@ void controlTorque() {
   float outPitch = pitchRatePID.update(pitchRateError);
   float outYaw   = yawRatePID.update(yawRateError);
 
-  // Serial.print(rollRateError);
-  // Serial.print(", ");
-  // Serial.print(targetRollRate);
-  // Serial.print(", ");
-  // Serial.print(gyroRad);
-  // Serial.print(", ");
-  // Serial.println(outRoll);
-
-  // Serial.print("gyroY:"); Serial.print(gyroRad.y);
-  // Serial.print(" err:");  Serial.print(pitchRateError);
-  // Serial.print(" outP:"); Serial.println(outPitch);
   // Микшер
-  motors[MOTOR_FRONT_LEFT]  = constrain(throttle_channel + outRoll + outPitch - outYaw, 0, 1);
-  motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll + outPitch + outYaw, 0, 1);
+  motors[MOTOR_FRONT_LEFT]  = constrain(throttle_channel + outRoll + outPitch + outYaw, 0, 1);
+  motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll + outPitch - outYaw, 0, 1);
   motors[MOTOR_REAR_RIGHT]  = constrain(throttle_channel - outRoll - outPitch - outYaw, 0, 1);
   motors[MOTOR_REAR_LEFT]   = constrain(throttle_channel + outRoll - outPitch + outYaw, 0, 1);
 
-  // Serial.println(String(outRoll) + ", " + String(outPitch) + ", " + String(outYaw));
-  //Serial.println(String(throttle_channel));
-
-  //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
-
-  // Serial.print(motors[MOTOR_FRONT_LEFT]);
-  // Serial.print(", ");
-  // Serial.print(motors[MOTOR_FRONT_RIGHT]);
-  // Serial.print(", ");
-  // Serial.print(motors[MOTOR_REAR_RIGHT]);
-  // Serial.print(", ");
-  // Serial.println(motors[MOTOR_REAR_LEFT]);
+  //Serial.println(String(outRoll) + ", " + String(outPitch) + ", " + String(outYaw));
 }
 
 void controlArming() {

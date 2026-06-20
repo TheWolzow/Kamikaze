@@ -13,6 +13,7 @@ extern const int MOTOR_REAR_LEFT;
 void attachMotors();
 void writeAllMotors(float throttle);
 void writeMotors();
+void calibrateMotors();
 
 bool motorsActive();
 void applyMicrosecondsToAll(int value);

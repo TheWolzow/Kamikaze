@@ -5,8 +5,8 @@
 Вес дрона с аккумулятором: 550г
 Аккум: 90г
 
-Эта учебная программа создана по мотивам Flix
-https://github.com/okalachev/flix/tree/master/flix
+Полезные ресурсы:
+ Flix: https://github.com/okalachev/flix/tree/master/flix
 
 TODO лист:
 
@@ -20,6 +20,7 @@ TODO лист:
 */
 
 #include <Arduino.h>
+#include <Wire.h>
 #include "step.h"
 #include "rc.h"
 #include "led.h"
@@ -28,32 +29,40 @@ TODO лист:
 #include "control.h"
 #include "estimate.h"
 
-LEDStrip strip(13, 10);  // Пин 13, n светодиодов
+// LEDStrip strip(13, 10);  // Пин 13, n светодиодов
 
 
 void setup() {
   Serial.begin(115200);
 
-  strip.begin();
-  
-  // Тест
-  strip.setPixel(0, 255, 0, 0);
-  strip.setPixel(1, 255, 0, 0);
+  Wire.begin(21, 22);  // SDA=21, SCL=22
+  Wire.setClock(400000);
 
-  strip.setPixel(5, 0, 0, 255);
-  strip.setPixel(6, 0, 0, 255);
-  strip.show();
+  // strip.begin();
+  
+  // // Тест
+  // strip.setPixel(0, 255, 0, 0);
+  // strip.setPixel(1, 255, 0, 0);
+
+  // strip.setPixel(5, 0, 0, 255);
+  // strip.setPixel(6, 0, 0, 255);
+  // strip.show();
   
   delay(1000);
 
-  pinMode(2, OUTPUT);
-
   attachMotors();
+
+  /*
+  Если нужна калибровка моторов, стоит попробовать это:
+  calibrateMotors();
+  return;
+  */
+
   beginSBUS();
   initIMU();
   //delay(6000);
   
-  calibrateAsync();
+  calibrateIMU();
 }
 
 void loop() {
