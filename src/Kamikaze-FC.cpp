@@ -1,6 +1,7 @@
 /*
 
 Программа полётного контроллера.
+Гитхаб: https://github.com/TheWolzow/Kamikaze
 
 Вес дрона с аккумулятором: 550г
 Аккум: 90г
@@ -10,10 +11,8 @@
 
 TODO лист:
 
-3. При резком изменении режима (когда сделаю) сбрасывать ПИДы (PID::reset)
-
+При резком изменении режима (когда сделаю) сбрасывать ПИДы (PID::reset)
 Например:
-
 смена Acro → Angle
 включение стабилизации
 
@@ -67,11 +66,15 @@ void setup() {
 
 void loop() {
   readIMU();
-  step();
-  readRC();
-  estimate();
-  control();
-  writeMotors();
+
+  if (imu_updated) {
+    step();
+    readRC();
+    estimate();
+    control();
+    writeMotors();
+  }
+  
   //handleInput();  // cli
   //logData();  // log
   //syncParameters();  // params

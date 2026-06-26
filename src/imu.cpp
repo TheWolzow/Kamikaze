@@ -6,13 +6,16 @@
 #include "utils.h"
 
 #define MPU_ADDR 0x68
+#define G_CONST 9.8  //  м/с^2
 
 const float ACCEL_LSB_PER_G = 16384.0;  // +-2g
 const float GYRO_LSB_PER_DPS = 131.0;   // +-250 градусов/с
 
 const short CALIB_SAMPLES = 2000;
 
-const unsigned long period = 2000;  // микросекунды
+const unsigned long period = 1000;  // микросекунды
+
+bool imu_updated = false;
 
 unsigned long last_time = 0;
 
@@ -21,6 +24,7 @@ Vector gyroDeg;  // gyroscope output, deg/s
 Vector gyroBias;  // raw gyro bias
 
 Vector acc;  // accelerometer output, m/s/s
+Vector accNorm;  // accelerometer output, normalized acc
 Vector accG;  // accelerometer output, g
 Vector accBias;  // raw acc bias
 
@@ -80,7 +84,7 @@ void mpu6050_read_raw(int16_t &ax, int16_t &ay, int16_t &az,
 
 // Читает сырые данные и составляет из них вектора
 void readIMU() {
-  // Фиксированный период 2000 мкс -> 500 Гц
+  // Фиксированный период 1000 мкс -> 1000 Гц
   unsigned long now = micros();
   
   if (now - last_time >= period) {
@@ -101,11 +105,23 @@ void readIMU() {
     accG.y = ay_raw / ACCEL_LSB_PER_G;
     accG.z = az_raw / ACCEL_LSB_PER_G;
 
+    acc = accG * G_CONST;
+
+    accNorm = acc.normalize();
+
     gyroRad.x = gx_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
-    gyroRad.y = gy_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD * -1;
+    gyroRad.y = gy_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
     gyroRad.z = gz_raw / GYRO_LSB_PER_DPS * DEG_TO_RAD;
 
+    // “pitch вверх = +” и “yaw вправо = +”
+    //gyroRad.y = -gyroRad.y;
+    //gyroRad.z = -gyroRad.z;
+
+    imu_updated = true;
+
     // Serial.println(gyroRad);
+  } else {
+    imu_updated = false;
   }
 }
 
@@ -137,4 +153,6 @@ void calibrateIMU() {
 
   accBias = accOffset;
   gyroBias = gyroOffset;
+
+  Serial.println("Калибровка завершена.");
 }

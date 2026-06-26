@@ -2,8 +2,8 @@
 // yaw - рыскание
 // pitch - тангаж
 
-// Отрицательный тангаж - наклон вниз.
-// Отрицательный крен - наклон вправо.
+// Положительный крен (ось X) - наклон вправо.
+// Положительный тангаж (ось Y) - наклон вверх.
 
 #include <Arduino.h>
 #include "estimate.h"
@@ -11,24 +11,69 @@
 #include "imu.h"
 #include "step.h"
 #include "vector.h"
+#include "quaternion.h"
+
+// ПИ-регулятор фильтра Махони
+#define MAHONY_Kp 6.5
+#define MAHONY_Ki 0  //0.0005
+
 
 Vector rotation;  // Ориентация дрона в градусах
 Vector rotationRad;  // Ориентация дрона в радианах
 
-static float complementary_alpha = 0.77;
+Quaternion attitude;  // Ориентация дрона в кватернионах
+
+static Vector integral;
 
 
 void estimate() {
-  // Градусы
-  float roll_acc = atan2(accG.y, accG.z);
-  float pitch_acc = atan2(accG.x, sqrt(accG.y * accG.y + accG.z * accG.z));
+  Vector gravity;
 
-  // Комплементарный фильтр
-  rotationRad.x = complementary_alpha * (rotationRad.x  + gyroRad.x * dt) + (1 - complementary_alpha) * roll_acc;
-  rotationRad.y = complementary_alpha * (rotationRad.y + gyroRad.y * dt) + (1 - complementary_alpha) * pitch_acc;
-  rotationRad.z = rotationRad.z + gyroRad.z * dt;
+  gravity.x =
+    2.0f * (attitude.x * attitude.z -
+            attitude.w * attitude.y);
 
+  gravity.y =
+    2.0f * (attitude.w * attitude.x +
+            attitude.y * attitude.z);
+
+  gravity.z =
+    attitude.w * attitude.w -
+    attitude.x * attitude.x -
+    attitude.y * attitude.y +
+    attitude.z * attitude.z;
+
+  Vector error = Vector::cross(accNorm, gravity);
+
+  integral += error * MAHONY_Ki * dt;
+
+  Vector correctedGyro =
+    gyroRad +
+    error * MAHONY_Kp +
+    integral;
+
+  Quaternion omega(
+    0,
+    correctedGyro.x,
+    correctedGyro.y,
+    correctedGyro.z
+  );
+  
+  Quaternion qDot =
+    (attitude * omega) * 0.5f;
+
+  // Интегрируем гироскоп
+  attitude = attitude + qDot * dt;
+  attitude.normalize();
+
+  rotationRad = attitude.toEuler();
   rotation = rotationRad * RAD_TO_DEG;
 
-  //Serial.println(rotation);
+  // Serial.print(error.x);
+  // Serial.print(" ");
+  // Serial.print(error.y);
+  // Serial.print(" ");
+  // Serial.println(error.z);
+
+  // Serial.println(rotation);
 }

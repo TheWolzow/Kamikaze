@@ -9,6 +9,7 @@ float dt;
 
 void step() {
 	float now = micros() / 1000000.0;
+	//Serial.println(now);
 	dt = now - t;
 	t = now;
 

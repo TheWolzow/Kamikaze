@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Arduino.h>
+
 class Vector : public Printable {
 public:
 	float x, y, z;
@@ -31,14 +33,16 @@ public:
 	}
 
 	float norm() const {
-		return sqrt(x * x + y * y + z * z);
+		return sqrtf(x * x + y * y + z * z);
 	}
 
-	void normalize() {
+	Vector normalize() const {
 		float n = norm();
-		x /= n;
-		y /= n;
-		z /= n;
+
+		if (n == 0)
+			return Vector();
+		
+		return Vector(x / n, y / n, z / n);
 	}
 
 	Vector operator + (const float b) const {
@@ -112,9 +116,9 @@ public:
 
 	size_t printTo(Print& p) const {
 		return
-			p.print(x, 15) + p.print(" ") +
-			p.print(y, 15) + p.print(" ") +
-			p.print(z, 15);
+			p.print(x, 5) + p.print(" ") +
+			p.print(y, 5) + p.print(" ") +
+			p.print(z, 5);
 	}
 };
 
