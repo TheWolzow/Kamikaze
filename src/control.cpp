@@ -84,18 +84,34 @@ void controlTorque() {
   // ПИД угловой скорости в радианах
   float rollRateError  = targetRollRate  - gyroRad.x;
   float pitchRateError = targetPitchRate - gyroRad.y;
-  //float yawRateError   = targetYawRate   - gyroRad.z;
+  float yawRateError   = targetYawRate   - gyroRad.z;
   
   // ПИД моторов
   float outRoll  = rollRatePID.update(rollRateError);
   float outPitch = pitchRatePID.update(pitchRateError);
-  //float outYaw   = yawRatePID.update(yawRateError);
+  float outYaw   = yawRatePID.update(yawRateError);
+  // Serial.println(outYaw);
 
   // Микшер
-  motors[MOTOR_FRONT_LEFT]  = constrain(throttle_channel + outRoll - outPitch, 0, 1);
-  motors[MOTOR_FRONT_RIGHT] = constrain(throttle_channel - outRoll - outPitch, 0, 1);
-  motors[MOTOR_REAR_RIGHT]  = constrain(throttle_channel - outRoll + outPitch, 0, 1);
-  motors[MOTOR_REAR_LEFT]   = constrain(throttle_channel + outRoll + outPitch, 0, 1);
+  motors[MOTOR_FRONT_LEFT]  = constrain(
+      throttle_channel + outRoll - outPitch + outYaw,
+      0, 1
+  );
+
+  motors[MOTOR_FRONT_RIGHT] = constrain(
+      throttle_channel - outRoll - outPitch - outYaw,
+      0, 1
+  );
+
+  motors[MOTOR_REAR_RIGHT]  = constrain(
+      throttle_channel - outRoll + outPitch + outYaw,
+      0, 1
+  );
+
+  motors[MOTOR_REAR_LEFT]   = constrain(
+      throttle_channel + outRoll + outPitch - outYaw,
+      0, 1
+  );
 
   // Serial.print(motors[MOTOR_FRONT_LEFT]);
   // Serial.print(" ");

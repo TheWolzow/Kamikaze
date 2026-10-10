@@ -14,20 +14,27 @@ uint8_t sbusIndex = 0;
 uint16_t sbusChannels[16];
 uint32_t lastSbusTime = 0;
 
-static const int channelMin[4] = {
+const uint8_t RX_SBUS_PIN = 23;
+
+static const uint8_t channelMin[7] = {
   192,
   179,
   185,
+  172,
+  172,
+  172,
   172
 };
 
-static const int channelMax[4] = {
+static const uint16_t channelMax[7] = {
+  1811,
+  1811,
+  1811,
   1811,
   1811,
   1811,
   1811
 };
-
 
 bool sbusReady;
 bool sbusFailsafe;  // Когда радиосигнал с пульта потерян
@@ -42,13 +49,15 @@ float roll_channel = 0;  // Крен в градусах
 float pitch_channel = 0;  // Тангаж в градусах
 
 bool motor_switch_channel = 0;  // 0 - Моторы выключены. 1 - Моторы включены.
+bool log_state_channel = 0;  // 0 - Логгирование выключено. 1 - Логгирование включено.
+bool log_send_channel = 0;  // 0 - Дампинг логов отключён. 1 - Дампинг логов включён.
 
 
 void beginSBUS() {
   SBUS.begin(
     100000,            // скорость SBUS
     SERIAL_8E2,         // формат
-    23,                 // RX (SBUS)
+    RX_SBUS_PIN,                 // RX (SBUS)
     -1                  // TX не нужен
   );
 
@@ -117,8 +126,8 @@ void decodeSBUS() {
   sbusChannels[14] = (sbusFrame[20] >> 2 | sbusFrame[21] << 6) & 0x07FF;
   sbusChannels[15] = (sbusFrame[21] >> 5 | sbusFrame[22] << 3) & 0x07FF;
 
-  sbusLostFrame = sbusFrame[23] & (1 << 2);
-  sbusFailsafe  = sbusFrame[23] & (1 << 3);
+  sbusLostFrame = sbusFrame[23] & (1 << 2) != 0;
+  sbusFailsafe  = sbusFrame[23] & (1 << 3) != 0;
 
   // Serial.print("Failsafe: ");
   // Serial.print(sbusFailsafe);
@@ -139,7 +148,7 @@ void parseSBUS() {
       }
     }
 
-    // пример: печать первых n каналов
+    // Пример: печать первых n каналов
     // for (int i = 0; i < 8; i++) {
     //   Serial.print(i);
     //   Serial.print(":");
@@ -147,16 +156,15 @@ void parseSBUS() {
     //   Serial.print(" ");
     // }
     // Serial.println();
-/*
+    /*
       Каналы:
       0 - Газ (больше число - вверх ручка)
       1 - Крен (больше число - вправо ручка)
       2 - Тангаж (больше число - вверх ручка)
       3 - Рыскание (больше число - вправо ручка)
-      4 - 
+      4 - Арминг
+      5 - В минимальном положении стоп, в максимальном старт логгирования
     */
-
-    //  Нормализация: float norm = (channel - 992.0f) / 820.0f;  // -1 … +1
 
     throttle_channel = mapf(sbusChannels[0], channelMin[0], channelMax[0], 0.0, 1.0);
     throttle_channel = constrain(throttle_channel, 0, 1);
@@ -164,42 +172,27 @@ void parseSBUS() {
     roll_channel = mapf(sbusChannels[1], channelMin[1], channelMax[1], -90, 90);
     pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], -90, 90);
     yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -90, 90);
-    
-    // float pid_channel = sbusChannels[6];
-    // float k = fmap(sbusChannels[7], 172, 1811, 0.0, 5.0);
 
-    // if (pid_channel == 1811) {
-    //   pidRoll.Kp = k;
-    //   pidPitch.Kp = k;
-    // } else if (pid_channel == 992) {
-    //   pidRoll.Ki = k;
-    //   pidPitch.Ki = k;
+    motor_switch_channel = sbusChannels[4] > 1000;;
 
-    // } else if (pid_channel == 172) {
-    //   pidRoll.Kd = k;
-    //   pidPitch.Kd = k;
-    // }
-    
+    if (sbusChannels[5] == channelMin[5]) {
+      log_state_channel = 0;
+    } else if (sbusChannels[5] == channelMax[5]) {
+      log_state_channel = 1;
+    }
 
-    // Serial.print(pidRoll.Kp);
-    // Serial.print(", ");
-    // Serial.print(pidRoll.Ki);
-    // Serial.print(", ");
-    // Serial.print(pidRoll.Kd);
-    // Serial.println();
-
-    motor_switch_channel = sbusChannels[4] == 172 ? 0 : 1;
+    if (sbusChannels[6] == channelMin[6]) {
+      log_send_channel = 0;
+    } else if (sbusChannels[6] == channelMax[6]) {
+      log_send_channel = 1;
+    }
 
     // Serial.print(throttle_channel);
     // Serial.print(", ");
     // Serial.print(roll_channel);
     // Serial.print(", ");
     // Serial.print(pitch_channel);
-    // Serial.print(", ");
-    // Serial.print(motor_switch_channel);
     // Serial.println();
-
-    // delay(200);
   }
 }
 

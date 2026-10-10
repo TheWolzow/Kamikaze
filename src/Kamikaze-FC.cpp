@@ -20,15 +20,20 @@ TODO лист:
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "step.h"
+
 #include "rc.h"
+#include "cli.h"
 #include "led.h"
 #include "imu.h"
+#include "step.h"
 #include "motors.h"
+#include "logger.h"
 #include "control.h"
+#include "espwifi.h"
 #include "estimate.h"
 
-// LEDStrip strip(13, 10);  // Пин 13, n светодиодов
+//LEDStrip strip(4, 10);  // Пин 4, n светодиодов
+
 
 
 void setup() {
@@ -36,16 +41,6 @@ void setup() {
 
   Wire.begin(21, 22);  // SDA=21, SCL=22
   Wire.setClock(400000);
-
-  // strip.begin();
-  
-  // // Тест
-  // strip.setPixel(0, 255, 0, 0);
-  // strip.setPixel(1, 255, 0, 0);
-
-  // strip.setPixel(5, 0, 0, 255);
-  // strip.setPixel(6, 0, 0, 255);
-  // strip.show();
   
   delay(1000);
 
@@ -58,10 +53,11 @@ void setup() {
   */
 
   beginSBUS();
-  initIMU();
-  //delay(6000);
   
+  initIMU();
   calibrateIMU();
+
+  setupWiFi();
 }
 
 void loop() {
@@ -73,9 +69,9 @@ void loop() {
     estimate();
     control();
     writeMotors();
+
+    handleLogging();  // Логгирование
   }
-  
-  //handleInput();  // cli
-  //logData();  // log
-  //syncParameters();  // params
+
+  handleCLI();  // Интерфейс командной строки
 }

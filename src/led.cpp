@@ -10,6 +10,7 @@
 LEDStrip::LEDStrip(uint8_t pin, uint16_t num_leds) 
     : pin_(pin), num_leds_(num_leds), channel_(RMT_CHANNEL_0), 
       buffer_(nullptr), initialized_(false) {
+        
     buffer_ = new uint8_t[num_leds * 3];
     memset(buffer_, 0, num_leds * 3);
 }

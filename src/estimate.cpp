@@ -75,5 +75,5 @@ void estimate() {
   // Serial.print(" ");
   // Serial.println(error.z);
 
-  // Serial.println(rotation);
+  // Serial.println(attitude);
 }
