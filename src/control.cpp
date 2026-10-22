@@ -45,7 +45,9 @@ PID pitchPID(PITCH_P, PITCH_I, PITCH_D);
 Vector maxRateRad(ROLLRATE_MAX, PITCHRATE_MAX, YAWRATE_MAX);
 
 bool armed = true;  // Если арм, то моторы могут крутиться.
+
 FlightMode flightMode = ANGLE;
+FlightMode prevFlightMode = flightMode;
 
 float outRoll, outPitch, outYaw;
 
@@ -60,14 +62,14 @@ void controlTorque() {
   if (!armed || throttle_channel == 0) {
     writeAllMotors(0);
 
-    rollPID.reset();
-    pitchPID.reset();
-
-    rollRatePID.reset();
-    pitchRatePID.reset();
-    yawRatePID.reset();
+    resetControlPIDs();
 
     return;
+  }
+
+  // Если режим полёта был изменён
+  if (flightMode != prevFlightMode) {
+    resetControlPIDs();
   }
 
   switch (flightMode) {
@@ -82,6 +84,8 @@ void controlTorque() {
   default:
     break;
   }
+
+  prevFlightMode = flightMode;
 
   controlMixer();
 }
@@ -179,4 +183,40 @@ void controlArming() {
   if (radioLost || motor_switch_channel == 0) {
     armed = false;
   }
+}
+
+// Сбрасывает ПИДы (например, интеграл)
+void resetControlPIDs() {
+  rollPID.reset();
+  pitchPID.reset();
+
+  rollRatePID.reset();
+  pitchRatePID.reset();
+  yawRatePID.reset();
+}
+
+/*
+  Десатурация моторов.
+  Чтобы даже при максимальном газе разница в управляющих сигналах была одинаковой, сохраняя полётный профиль
+*/
+void desaturate() {
+	float max_ = -INFINITY, min_ = INFINITY;
+	float correction = 0;
+
+	// Находим максимум и минимум газа
+	for (float m : motors) {
+		if (m > max_) max_ = m;
+		if (m < min_) min_ = m;
+	}
+
+	if (max_ > 1) {  // Газ превышает максимум
+		correction = max_ - 1;
+    
+	} else if (min_ < 0) {  // Газ ниже минимума
+		correction = min_;
+	}
+
+	for (float& m : motors) {
+		m -= correction;
+	}
 }

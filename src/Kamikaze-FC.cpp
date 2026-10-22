@@ -8,13 +8,7 @@
 
 Полезные ресурсы:
  Flix: https://github.com/okalachev/flix/tree/master/flix
-
-TODO лист:
-
-При резком изменении режима (когда сделаю) сбрасывать ПИДы (PID::reset)
-Например:
-смена Acro → Angle
-включение стабилизации
+ Mixer theory: https://cookierobotics.com/066/
 
 */
 

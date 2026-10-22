@@ -17,6 +17,7 @@ enum FlightMode {
 
 extern bool armed;
 extern FlightMode flightMode;
+extern FlightMode prevFlightMode;
 
 void control();
 void controlTorque();

@@ -191,9 +191,11 @@ void parseSBUS() {
     motor_switch_channel = sbusChannels[4] > 1000;
 
     if (sbusChannels[9] == channelMin[9]) {
+      prevFlightMode = flightMode;
       flightMode = ACRO;
 
     } else if (sbusChannels[9] < 1000) {
+      
       flightMode = ANGLE;
     }
 
