@@ -3,7 +3,7 @@
 extern bool radioLost;
 
 // Каналы
-extern float throttle_channel;  // Газ
+extern float throttle_channel;  // Газ [0; 1]
 extern float yaw_channel;  // Рыскание в градусах
 extern float roll_channel;  // Крен в градусах
 extern float pitch_channel;  // Тангаж в градусах

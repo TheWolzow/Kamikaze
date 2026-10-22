@@ -3,6 +3,7 @@
 
 #include <HardwareSerial.h>
 #include "driver/uart.h"
+#include "control.h"
 #include "motors.h"
 #include "utils.h"
 
@@ -16,17 +17,23 @@ uint32_t lastSbusTime = 0;
 
 const uint8_t RX_SBUS_PIN = 23;
 
-static const uint8_t channelMin[7] = {
+static const uint8_t channelMin[10] = {
   192,
   179,
   185,
   172,
   172,
   172,
+  172,
+  172,
+  172,
   172
 };
 
-static const uint16_t channelMax[7] = {
+static const uint16_t channelMax[10] = {
+  1811,
+  1811,
+  1811,
   1811,
   1811,
   1811,
@@ -43,8 +50,8 @@ bool sbusLostFrame;
 bool radioLost;
 
 // Каналы
-float throttle_channel = MIN_MOTOR;  // Газ
-float yaw_channel = 0;  // Рыскание, значение стика [-1; 1]
+float throttle_channel = 0;  // Газ [0; 1]
+float yaw_channel = 0;  // Рыскание в градусах
 float roll_channel = 0;  // Крен в градусах
 float pitch_channel = 0;  // Тангаж в градусах
 
@@ -149,7 +156,7 @@ void parseSBUS() {
     }
 
     // Пример: печать первых n каналов
-    // for (int i = 0; i < 8; i++) {
+    // for (int i = 0; i < 16; i++) {
     //   Serial.print(i);
     //   Serial.print(":");
     //   Serial.print(sbusChannels[i]);
@@ -164,6 +171,10 @@ void parseSBUS() {
       3 - Рыскание (больше число - вправо ручка)
       4 - Арминг
       5 - В минимальном положении стоп, в максимальном старт логгирования
+      6 - Отправить логи по Wi-Fi
+      7 - Крутилка левая
+      8 - Крутилка правая
+      9 - Режимы полёта: в самый низ - Acro, по середине - Angle.
     */
 
     throttle_channel = mapf(sbusChannels[0], channelMin[0], channelMax[0], 0.0, 1.0);
@@ -173,7 +184,18 @@ void parseSBUS() {
     pitch_channel = mapf(sbusChannels[2], channelMin[2], channelMax[2], -90, 90);
     yaw_channel = mapf(sbusChannels[3], channelMin[3], channelMax[3], -90, 90);
 
-    motor_switch_channel = sbusChannels[4] > 1000;;
+    roll_channel = abs(roll_channel) < 0.45 ? 0 : roll_channel;
+    pitch_channel = abs(pitch_channel) < 0.45 ? 0 : pitch_channel;
+    yaw_channel = abs(yaw_channel) < 0.45 ? 0 : yaw_channel;
+
+    motor_switch_channel = sbusChannels[4] > 1000;
+
+    if (sbusChannels[9] == channelMin[9]) {
+      flightMode = ACRO;
+
+    } else if (sbusChannels[9] < 1000) {
+      flightMode = ANGLE;
+    }
 
     if (sbusChannels[5] == channelMin[5]) {
       log_state_channel = 0;

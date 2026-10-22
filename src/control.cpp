@@ -24,12 +24,14 @@
 #define YAWRATE_I 0.0
 #define YAWRATE_D 0.0
 #define YAWRATE_I_LIM 0.3
+
 #define ROLL_P 1
 #define ROLL_I 0
 #define ROLL_D 0
 #define PITCH_P ROLL_P
 #define PITCH_I ROLL_I
 #define PITCH_D ROLL_D
+
 #define PITCHRATE_MAX radians(200)
 #define ROLLRATE_MAX radians(200)
 #define YAWRATE_MAX radians(150)
@@ -40,14 +42,18 @@ PID pitchRatePID(PITCHRATE_P, PITCHRATE_I, PITCHRATE_D, PITCHRATE_I_LIM, RATES_D
 PID yawRatePID(YAWRATE_P, YAWRATE_I, YAWRATE_D);
 PID rollPID(ROLL_P, ROLL_I, ROLL_D);
 PID pitchPID(PITCH_P, PITCH_I, PITCH_D);
-Vector maxRate(ROLLRATE_MAX, PITCHRATE_MAX, YAWRATE_MAX);
+Vector maxRateRad(ROLLRATE_MAX, PITCHRATE_MAX, YAWRATE_MAX);
 
 bool armed = true;  // Если арм, то моторы могут крутиться.
+FlightMode flightMode = ANGLE;
+
+float outRoll, outPitch, outYaw;
 
 
 void control() {
-  controlTorque();
   controlArming();
+  
+  controlTorque();
 }
 
 void controlTorque() {
@@ -64,34 +70,72 @@ void controlTorque() {
     return;
   }
 
+  switch (flightMode) {
+  case ACRO:
+    controlAcro();
+    break;
+
+  case ANGLE:
+    controlAngle();
+    break;
+
+  default:
+    break;
+  }
+
+  controlMixer();
+}
+
+void controlAcro() {
+  // ПИД целевой угловой скорости в радианах
+  float targetRollRate = roll_channel * DEG_TO_RAD;
+  float targetPitchRate = pitch_channel * DEG_TO_RAD;
+  float targetYawRate = yaw_channel * DEG_TO_RAD;
+
+  // Ограничиваем максимальную скорость вращения
+  targetRollRate = constrain(targetRollRate, -maxRateRad.x, maxRateRad.x);
+  targetPitchRate = constrain(targetPitchRate, -maxRateRad.y, maxRateRad.y);
+  targetYawRate = constrain(targetYawRate, -maxRateRad.z, maxRateRad.z);
+  
+  // Ошибка угловой скорости в радианах
+  float rollRateError  = targetRollRate  - gyroRad.x;
+  float pitchRateError = targetPitchRate - gyroRad.y;
+  float yawRateError   = targetYawRate   - gyroRad.z;
+
+  // ПИД моторов
+  outRoll  = rollRatePID.update(rollRateError);
+  outPitch = pitchRatePID.update(pitchRateError);
+  outYaw   = yawRatePID.update(yawRateError);
+  // Serial.println(outYaw);
+}
+
+void controlAngle() {
   // Ошибка угла в радианах
   float rollError = roll_channel * DEG_TO_RAD - rotationRad.x;
   float pitchError = pitch_channel * DEG_TO_RAD - rotationRad.y;
 
-  //Serial.println(String(roll_channel) + ", " + String(pitch_channel));
-  //Serial.println(String(rollError) + ", " + String(pitchError));
-
   // ПИД целевой угловой скорости в радианах
   float targetRollRate = rollPID.update(rollError);
   float targetPitchRate = pitchPID.update(pitchError);
+  float targetYawRate = yaw_channel * DEG_TO_RAD;
 
   // Ограничиваем максимальную скорость вращения
-  targetRollRate = constrain(targetRollRate, -maxRate.x, maxRate.x);
-  targetPitchRate = constrain(targetPitchRate, -maxRate.y, maxRate.y);
+  targetRollRate = constrain(targetRollRate, -maxRateRad.x, maxRateRad.x);
+  targetPitchRate = constrain(targetPitchRate, -maxRateRad.y, maxRateRad.y);
+  targetYawRate = constrain(targetYawRate, -maxRateRad.z, maxRateRad.z);
   
-  float targetYawRate = yaw_channel * DEG_TO_RAD * maxRate.z;
-  
-  // ПИД угловой скорости в радианах
+  // Ошибка угловой скорости в радианах
   float rollRateError  = targetRollRate  - gyroRad.x;
   float pitchRateError = targetPitchRate - gyroRad.y;
   float yawRateError   = targetYawRate   - gyroRad.z;
-  
-  // ПИД моторов
-  float outRoll  = rollRatePID.update(rollRateError);
-  float outPitch = pitchRatePID.update(pitchRateError);
-  float outYaw   = yawRatePID.update(yawRateError);
-  // Serial.println(outYaw);
 
+  // ПИД моторов
+  outRoll  = rollRatePID.update(rollRateError);
+  outPitch = pitchRatePID.update(pitchRateError);
+  outYaw   = yawRatePID.update(yawRateError);
+}
+
+void controlMixer() {
   // Микшер
   motors[MOTOR_FRONT_LEFT]  = constrain(
       throttle_channel + outRoll - outPitch + outYaw,
@@ -126,8 +170,8 @@ void controlTorque() {
 }
 
 void controlArming() {
-  // Если сигнал есть, а моторы на минимальном газе, то: делаем арминг.
-  if (motor_switch_channel == 1 && throttle_channel <= MIN_MOTOR + 50) {
+  // Если сигнал есть и моторы на минимальном газе, то: делаем арминг.
+  if (motor_switch_channel == 1 && throttle_channel <= 0.03) {
     armed = true;
   }
 
@@ -135,8 +179,4 @@ void controlArming() {
   if (radioLost || motor_switch_channel == 0) {
     armed = false;
   }
-  
-  if (!armed) {
-		return;
-	}
 }
