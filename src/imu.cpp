@@ -31,9 +31,6 @@ void initIMU() {
   // Акселерометр-гироскоп
   accgyro.init();
 
-  // Магнитометр
-  magnetometer.init();
-
   last_time = micros();
 
   Serial.println("Инициализация IMU: успешно");
@@ -68,9 +65,8 @@ void readIMU() {
     // Читаем сырые данные магнитометра
     //magnetometer.read(magData);
 
-   
-
     // Serial.println(acc);
+    // Serial.println(gyroRad);
     //Serial.println(magData);
 
     imu_updated = true;

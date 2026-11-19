@@ -1,8 +1,11 @@
 #pragma once
 
 #include "vector.h"
+#include "quaternion.h"
 
-extern Vector rotation;  // Ориентация дрона в градусах
-extern Vector rotationRad;  // Ориентация дрона в радианах
+extern Vector rotation;
+extern Vector rotationRad;
+
+extern Quaternion attitude;
 
 void estimate();

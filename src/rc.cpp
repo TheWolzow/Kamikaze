@@ -15,7 +15,7 @@ uint8_t sbusIndex = 0;
 uint16_t sbusChannels[16];
 uint32_t lastSbusTime = 0;
 
-const uint8_t RX_SBUS_PIN = 23;
+const uint8_t RX_SBUS_PIN = 4;
 
 static const uint8_t channelMin[10] = {
   192,
@@ -76,7 +76,8 @@ void readRC() {
   readSBUS();
   parseSBUS();
 
-  radioLost = sbusFailsafe || (millis() - lastSbusTime > 100); 
+  radioLost = sbusFailsafe || (millis() - lastSbusTime > 100);
+  //Serial.println(radioLost);
 }
 
 void readSBUS() {
@@ -133,13 +134,15 @@ void decodeSBUS() {
   sbusChannels[14] = (sbusFrame[20] >> 2 | sbusFrame[21] << 6) & 0x07FF;
   sbusChannels[15] = (sbusFrame[21] >> 5 | sbusFrame[22] << 3) & 0x07FF;
 
-  sbusLostFrame = sbusFrame[23] & (1 << 2) != 0;
-  sbusFailsafe  = sbusFrame[23] & (1 << 3) != 0;
+  sbusLostFrame = (sbusFrame[23] & (1 << 2)) != 0;
+  sbusFailsafe  = (sbusFrame[23] & (1 << 3)) != 0;
 
-  // Serial.print("Failsafe: ");
-  // Serial.print(sbusFailsafe);
-  // Serial.print(" LostFrame: ");
-  // Serial.println(sbusLostFrame);
+  // if (sbusLostFrame || sbusFailsafe) {
+  //   Serial.print("Failsafe: ");
+  //   Serial.print(sbusFailsafe);
+  //   Serial.print(" LostFrame: ");
+  //   Serial.println(sbusLostFrame);
+  // }
 }
 
 void parseSBUS() {

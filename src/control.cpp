@@ -11,6 +11,8 @@
 #include "rc.h"
 #include "pid.h"
 #include "imu.h"
+#include "utils.h"
+#include "quaternion.h"
 
 #define PITCHRATE_P 0.05
 #define PITCHRATE_I 0.01
@@ -31,6 +33,9 @@
 #define PITCH_P ROLL_P
 #define PITCH_I ROLL_I
 #define PITCH_D ROLL_D
+#define YAW_P ROLL_P
+#define YAW_I ROLL_I
+#define YAW_D ROLL_D
 
 #define PITCHRATE_MAX radians(200)
 #define ROLLRATE_MAX radians(200)
@@ -42,6 +47,8 @@ PID pitchRatePID(PITCHRATE_P, PITCHRATE_I, PITCHRATE_D, PITCHRATE_I_LIM, RATES_D
 PID yawRatePID(YAWRATE_P, YAWRATE_I, YAWRATE_D);
 PID rollPID(ROLL_P, ROLL_I, ROLL_D);
 PID pitchPID(PITCH_P, PITCH_I, PITCH_D);
+PID yawPID(YAW_P, YAW_I, YAW_D);
+
 Vector maxRateRad(ROLLRATE_MAX, PITCHRATE_MAX, YAWRATE_MAX);
 
 bool armed = true;  // Если арм, то моторы могут крутиться.
@@ -49,13 +56,49 @@ bool armed = true;  // Если арм, то моторы могут крути�
 FlightMode flightMode = ANGLE;
 FlightMode prevFlightMode = flightMode;
 
+Quaternion attitudeTarget;  // Целевая ориентация дрона в виде кватерниона
+
+Vector ratesTarget;  // Целевая угловая скорость (рад/с)
+Vector ratesExtra;
+
 float outRoll, outPitch, outYaw;
 
 
 void control() {
   controlArming();
   
+  controlModes();
   controlTorque();
+}
+
+void controlModes() {
+  if (flightMode == ANGLE) {
+    float yawTarget = attitudeTarget.getYaw();
+
+    // Удержание курса при нейтральном стике и команда вращения при отклонённом стике
+    if (!armed || isnan(yawTarget) || yaw_channel != 0) {
+      yawTarget = attitude.getYaw();
+    }
+
+		attitudeTarget = Quaternion::fromEuler(Vector(
+      roll_channel * DEG_TO_RAD,
+      pitch_channel * DEG_TO_RAD,
+      yawTarget * DEG_TO_RAD
+    ));
+
+    ratesExtra.z = yaw_channel * DEG_TO_RAD;
+  }
+
+  if (flightMode == ACRO) {
+    attitudeTarget.invalidate();
+
+    ratesTarget = Vector(
+      roll_channel * DEG_TO_RAD,
+      pitch_channel * DEG_TO_RAD,
+      yaw_channel * DEG_TO_RAD
+    );
+    ratesTarget.constrainVector(maxRateRad);
+  }
 }
 
 void controlTorque() {
@@ -69,75 +112,81 @@ void controlTorque() {
 
   // Если режим полёта был изменён
   if (flightMode != prevFlightMode) {
-    resetControlPIDs();
+    resetControlPIDs();  // Сбрасываем накопления в ПИД
   }
 
-  switch (flightMode) {
-  case ACRO:
-    controlAcro();
-    break;
+  // Внешний контур
+  controlAttitude();
 
-  case ANGLE:
-    controlAngle();
-    break;
+  // Внутренний контур
+  controlRates();
 
-  default:
-    break;
-  }
+  // Микшер
+  controlMixer();
 
   prevFlightMode = flightMode;
-
-  controlMixer();
 }
 
-void controlAcro() {
-  // ПИД целевой угловой скорости в радианах
-  float targetRollRate = roll_channel * DEG_TO_RAD;
-  float targetPitchRate = pitch_channel * DEG_TO_RAD;
-  float targetYawRate = yaw_channel * DEG_TO_RAD;
+// Внешний контур. Вычисляет rates (целевую угловую скорость)
+void controlAttitude() {
+  // Если внешний контур отключен или если газ слишком мал - пропускаем
+  if (attitudeTarget.invalid() || throttle_channel < 0.07) return;
 
-  // Ограничиваем максимальную скорость вращения
-  targetRollRate = constrain(targetRollRate, -maxRateRad.x, maxRateRad.x);
-  targetPitchRate = constrain(targetPitchRate, -maxRateRad.y, maxRateRad.y);
-  targetYawRate = constrain(targetYawRate, -maxRateRad.z, maxRateRad.z);
-  
-  // Ошибка угловой скорости в радианах
-  float rollRateError  = targetRollRate  - gyroRad.x;
-  float pitchRateError = targetPitchRate - gyroRad.y;
-  float yawRateError   = targetYawRate   - gyroRad.z;
+  // Ошибка между настоящей вертикалью и целевой
+	const Vector up(0, 0, 1);
+	Vector upActual = Quaternion::rotateVector(up, attitude);
+	Vector upTarget = Quaternion::rotateVector(up, attitudeTarget);
+
+  // В радианах (потому что внутри используются acos и др.)
+	Vector error = Vector::rotationVectorBetween(upTarget, upActual);
+
+  // ПИД. Высчитываем целевую угловую скорость
+	ratesTarget.x = rollPID.update(error.x) + ratesExtra.x;
+	ratesTarget.y = pitchPID.update(error.y) + ratesExtra.y;
+
+  // Ошибка курса
+	float yawError = wrapAngle(attitudeTarget.getYaw() - attitude.getYaw());
+	ratesTarget.z = yawPID.update(yawError) + ratesExtra.z;
+
+  // Serial.println(ratesTarget);
+
+  // Serial.println(ratesTarget);
+}
+
+// Внутренний контур. Rate регулятор
+void controlRates() {
+  Vector rateError = ratesTarget - gyroRad;
+  // Serial.println(rateError);
 
   // ПИД моторов
-  outRoll  = rollRatePID.update(rollRateError);
-  outPitch = pitchRatePID.update(pitchRateError);
-  outYaw   = yawRatePID.update(yawRateError);
-  // Serial.println(outYaw);
+  outRoll  = rollRatePID.update(rateError.x);
+  outPitch = pitchRatePID.update(rateError.y);
+  outYaw   = yawRatePID.update(rateError.z);
 }
 
-void controlAngle() {
-  // Ошибка угла в радианах
-  float rollError = roll_channel * DEG_TO_RAD - rotationRad.x;
-  float pitchError = pitch_channel * DEG_TO_RAD - rotationRad.y;
+/*void controlHorizon() {
+  // Берём выход ACRO
+  controlAcro();
+  float acroRollRateError  = rollRateError;
+  float acroPitchRateError = pitchRateError;
+  float acroYawRateError   = yawRateError;
 
-  // ПИД целевой угловой скорости в радианах
-  float targetRollRate = rollPID.update(rollError);
-  float targetPitchRate = pitchPID.update(pitchError);
-  float targetYawRate = yaw_channel * DEG_TO_RAD;
+  // Берём выход ANGLE
+  controlAngle();
+  float angleRollRateError  = rollRateError;
+  float anglePitchRateError = pitchRateError;
+  float angleYawRateError   = yawRateError;
 
-  // Ограничиваем максимальную скорость вращения
-  targetRollRate = constrain(targetRollRate, -maxRateRad.x, maxRateRad.x);
-  targetPitchRate = constrain(targetPitchRate, -maxRateRad.y, maxRateRad.y);
-  targetYawRate = constrain(targetYawRate, -maxRateRad.z, maxRateRad.z);
-  
-  // Ошибка угловой скорости в радианах
-  float rollRateError  = targetRollRate  - gyroRad.x;
-  float pitchRateError = targetPitchRate - gyroRad.y;
-  float yawRateError   = targetYawRate   - gyroRad.z;
+  // Считаем силу преобладания ANGLE для всех осей
+  float roll_horizon_strength = calculateHorizonStrength(roll_channel / 90.0f, rotation.x);
+  float pitch_horizon_strength = calculateHorizonStrength(pitch_channel / 90.0f, rotation.y);
+  float yaw_horizon_strength = 0;
 
-  // ПИД моторов
-  outRoll  = rollRatePID.update(rollRateError);
-  outPitch = pitchRatePID.update(pitchRateError);
-  outYaw   = yawRatePID.update(yawRateError);
-}
+  // Смешиваем по весу
+  rollRateError = acroRollRateError * (1.0f - roll_horizon_strength) + angleRollRateError * roll_horizon_strength;
+  pitchRateError = acroPitchRateError * (1.0f - pitch_horizon_strength) + anglePitchRateError * pitch_horizon_strength;
+  yawRateError = acroYawRateError * (1.0f - yaw_horizon_strength) + angleYawRateError * yaw_horizon_strength;
+}*/
 
 void controlMixer() {
   // Микшер
@@ -216,7 +265,24 @@ void desaturate() {
 		correction = min_;
 	}
 
-	for (float& m : motors) {
+	for (float &m : motors) {
 		m -= correction;
 	}
+}
+
+// Преобладание режима (сила) ANGLE над режимом ACRO в режиме HORIZON.
+float calculateHorizonStrength(
+    float stickNormalized,       // -1.0 ... +1.0
+    float angleDeg     // текущий угол наклона
+) {
+    constexpr float STICK_LIMIT = 0.75f;
+    constexpr float ANGLE_LIMIT = 135.0f;
+
+    // Удаление от центра стика уменьшает силу
+    float stickFactor = 1.0f - constrain(abs(stickNormalized) / STICK_LIMIT, 0.0f, 1.0f);
+
+    // При наклоненном дроне сила становится меньше
+    float angleFactor = constrain(1.0f - abs(angleDeg) / ANGLE_LIMIT, 0.0f, 1.0f);
+
+    return stickFactor * angleFactor;
 }

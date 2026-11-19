@@ -10,6 +10,57 @@ public:
     Quaternion() : w(1), x(0), y(0), z(0) {}
     Quaternion(float w_, float x_, float y_, float z_) : w(w_), x(x_), y(y_), z(z_) {}
 
+    static Quaternion fromEuler(const Vector &euler) {
+		float cx = cosf(euler.x / 2);
+		float cy = cosf(euler.y / 2);
+		float cz = cosf(euler.z / 2);
+		float sx = sinf(euler.x / 2);
+		float sy = sinf(euler.y / 2);
+		float sz = sinf(euler.z / 2);
+
+		return Quaternion(
+			cx * cy * cz + sx * sy * sz,
+			sx * cy * cz - cx * sy * sz,
+			cx * sy * cz + sx * cy * sz,
+			cx * cy * sz - sx * sy * cz
+        );
+	}
+
+    static Vector rotateVector(const Vector& v, const Quaternion& q) {
+        return q.conjugateInversed(v);
+    }
+
+    bool finite() const {
+		return isfinite(w) && isfinite(x) && isfinite(y) && isfinite(z);
+	}
+
+	bool valid() const {
+		return finite();
+	}
+
+	bool invalid() const {
+		return !valid();
+	}
+
+    float getRoll() const {
+		return toEuler().x;
+	}
+
+	float getPitch() const {
+		return toEuler().y;
+	}
+
+	float getYaw() const {
+		return toEuler().z;
+	}
+
+	void invalidate() {
+		w = NAN;
+		x = NAN;
+		y = NAN;
+		z = NAN;
+	}
+
     void normalize() {
         float mag = sqrtf(
             w*w +
@@ -24,6 +75,30 @@ public:
         x /= mag;
         y /= mag;
         z /= mag;
+    }
+
+    float dot(const Quaternion &q) const {
+        return w*q.w + x*q.x + y*q.y + z*q.z;
+    }
+
+    Quaternion conjugate() const {
+        return Quaternion(w, -x, -y, -z);
+    }
+
+    Quaternion inverse() const {
+        float normSq = w*w + x*x + y*y + z*z;
+
+        if (normSq == 0.0f) return Quaternion();
+
+        return conjugate() * (1.0f / normSq);
+    }
+
+    Vector conjugateInversed(const Vector& v) const {
+        Quaternion vectorQuat(0, v.x, v.y, v.z);
+
+        Quaternion result = inverse() * vectorQuat * (*this);
+
+        return Vector(result.x, result.y, result.z);
     }
 
     // Возвращает вектор вращения в радианах из кватерниона
@@ -47,7 +122,7 @@ public:
         return euler;
     }
 
-    Quaternion operator * (const Quaternion& q) const {
+    Quaternion operator * (const Quaternion &q) const {
         return Quaternion(
             w*q.w - x*q.x - y*q.y - z*q.z,
 
@@ -65,6 +140,10 @@ public:
 
     Quaternion operator + (const Quaternion& q) const {
         return Quaternion(w + q.w, x + q.x, y + q.y, z + q.z);
+    }
+
+    Quaternion operator - (const Quaternion& q) const {
+        return Quaternion(w - q.w, x - q.x, y - q.y, z - q.z);
     }
 
     size_t printTo(Print& p) const {

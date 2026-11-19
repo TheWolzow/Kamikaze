@@ -2,8 +2,15 @@
 // yaw - рыскание
 // pitch - тангаж
 
-// Положительный крен (ось X) - наклон вправо.
-// Положительный тангаж (ось Y) - наклон вверх.
+// Координаты корпуса: FLU
+// X — Forward
+// Y — Left
+// Z — Up
+
+// Положительные вращения:
+// Roll  — вправо
+// Pitch — нос вниз
+// Yaw   — против часовой стрелки сверху
 
 #include <Arduino.h>
 #include "estimate.h"
@@ -21,7 +28,7 @@
 Vector rotation;  // Ориентация дрона в градусах
 Vector rotationRad;  // Ориентация дрона в радианах
 
-Quaternion attitude;  // Ориентация дрона в кватернионах
+Quaternion attitude;  // Ориентация дрона как кватернион
 
 static Vector integral;
 
@@ -76,4 +83,5 @@ void estimate() {
   // Serial.println(error.z);
 
   // Serial.println(attitude);
+  // Serial.println(rotation);
 }

@@ -32,6 +32,12 @@ public:
 		z = NAN;
 	}
 
+	void constrainVector(const Vector &v) {
+		x = constrain(x, -v.x, v.x);
+		y = constrain(y, -v.y, v.y);
+		z = constrain(z, -v.z, v.z);
+	}
+
 	float norm() const {
 		return sqrtf(x * x + y * y + z * z);
 	}
@@ -109,16 +115,18 @@ public:
 			// vectors are opposite, return any perpendicular vector
 			return cross(a, Vector(1, 0, 0));
 		}
+
 		direction.normalize();
 		float angle = angleBetween(a, b);
+
 		return direction * angle;
 	}
 
 	size_t printTo(Print& p) const {
 		return
-			p.print(x, 5) + p.print(" ") +
-			p.print(y, 5) + p.print(" ") +
-			p.print(z, 5);
+			p.print(x, 2) + p.print(" ") +
+			p.print(y, 2) + p.print(" ") +
+			p.print(z, 2);
 	}
 };
 

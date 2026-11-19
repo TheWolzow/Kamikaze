@@ -10,6 +10,14 @@
  Flix: https://github.com/okalachev/flix/tree/master/flix
  Mixer theory: https://cookierobotics.com/066/
 
+TODO:
+
+  Но есть один нюанс: если у твоего rollPID и pitchPID внутри используется интегральная составляющая, 
+  вызов controlAngle() даже при нулевом весе ANGLE продолжит обновлять интегратор. 
+  Для базовой реализации это не обязательно критично, но поведение лучше продумать: 
+  например, не обновлять внешний Angle PID, когда его влияние не требуется, 
+  либо корректно сбрасывать/ограничивать интегратор.
+
 */
 
 #include <Arduino.h>
@@ -39,12 +47,6 @@ void setup() {
   delay(1000);
 
   attachMotors();
-
-  /*
-  Если нужна калибровка моторов, стоит попробовать это:
-  calibrateMotors();
-  return;
-  */
 
   beginSBUS();
   
